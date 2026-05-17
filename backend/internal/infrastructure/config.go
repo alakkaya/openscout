@@ -44,15 +44,30 @@ type LoggerConfig struct {
 }
 
 func LoadConfig() (*Config, error) {
+    databaseDSN, err := getEnvRequired("DATABASE_URL")
+    if err != nil {
+        return nil, err
+    }
+
+    githubToken, err := getEnvRequired("GITHUB_TOKEN")
+    if err != nil {
+        return nil, err
+    }
+
+    analyzerURL, err := getEnvRequired("ANALYZER_URL")
+    if err != nil {
+        return nil, err
+    }
+
     cfg := &Config{
         Database: DatabaseConfig{
-            DSN: getEnvRequired("DATABASE_URL"),
+            DSN: databaseDSN,
         },
         GitHub: GitHubConfig{
-            Token: getEnvRequired("GITHUB_TOKEN"),
+            Token: githubToken,
         },
         Analyzer: AnalyzerConfig{
-            URL: getEnvRequired("ANALYZER_URL"),
+            URL: analyzerURL,
         },
         Email: EmailConfig{
             Host:     getEnv("SMTP_HOST", ""),
@@ -78,12 +93,12 @@ func getEnv(key, fallback string) string {
     return fallback
 }
 
-func getEnvRequired(key string) string {
+func getEnvRequired(key string) (string, error) {
     v := os.Getenv(key)
     if v == "" {
-        panic(fmt.Sprintf("required env var missing: %s", key))
+        return "", fmt.Errorf("required env var missing: %s", key)
     }
-    return v
+    return v, nil
 }
 
 func getEnvInt(key string, fallback int) int {

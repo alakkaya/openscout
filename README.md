@@ -1,61 +1,62 @@
 # 🔭 OpenScout
 
-> GitHub'daki binlerce issue arasından senin seviyene uygun, **gerçekten çözülebilir** olanları sabah kahven hazır olana kadar bulur ve Telegram'a atar.
+> Finds the **actually solvable** issues that match your level among thousands of GitHub issues and sends them to Telegram before your morning coffee is ready.
 
 ---
 
-## Ne Yapar?
+## What It Does
 
-Her sabah saat 08:00'de otomatik olarak çalışır:
+It runs automatically every day at 08:00:
 
-1. **GitHub GraphQL API**'yi sorgular — Go, Python ve TypeScript projelerindeki `good first issue` ve `help wanted` etiketli issue'ları çeker
-2. Repo kalite filtresi uygular (README, lisans, 10+ katkıcı, son 90 gün aktif)
-3. **LLM (Gemini)** ile her issue'yu analiz eder: "Bu gerçekten yeni biri için çözülebilir mi?"
-4. En uygun 5 issue'yu seçer, karmaşıklık skoruyla birlikte **Telegram'a** gönderir
-5. Gönderilen issue'ları SQLite cache'e kaydeder — ertesi gün tekrar göndermez
+1. The **Go backend** queries the GitHub GraphQL API and collects issues tagged `good first issue` / `help wanted`
+2. It applies repository quality filters (README, license, contributor count, recent activity)
+3. It sends issues to the **Python analyzer service**, which uses Gemini for complexity analysis
+4. It selects the best 5 issues and sends them to **Telegram** with complexity scores
+5. It skips issues already seen using records stored in PostgreSQL
 
 ---
 
-## Mimari
+## Architecture
 
 ```
 GitHub GraphQL API
         │
         ▼
-github_client.py   ← repo kalite filtresi (README, lisans, katkıcı, aktiflik)
+backend/cmd/openscout/main.go
+        │
+        ├── internal/adapter/github      ← issue collection and repo quality filters
+        ├── internal/usecase             ← collection, analysis, notification flow
+        ├── internal/adapter/http        ← Python analyzer client
+        ├── internal/adapter/notification ← Telegram / email notifications
+        └── internal/adapter/postgres    ← user, preference, and notification records
         │
         ▼
-analyzer.py        ← Gemini ile karmaşıklık analizi (JSON çıktı)
+ai/service.py      ← Gemini-based issue analysis (JSON output)
         │
         ▼
-cache.py           ← SQLite — daha önce görülen issue'ları atla
-        │
-        ▼
-notifier.py        ← Telegram bot bildirimi
-        │
-        ▼
-scheduler.py       ← APScheduler cron (her gün 08:00 İstanbul saati)
+PostgreSQL         ← skip issues seen before
 ```
 
-**Neden bu teknolojiler?**
+**Why these technologies?**
 
-- **GraphQL**: Tek sorguda issue + repo kalite kriterleri — REST'te 3-4 istek gerekirdi
-- **Gemini**: Hızlı ve ucuz analiz modeli — günlük çalışma için ideal
-- **SQLite**: Sıfır konfigürasyon, dosya tabanlı cache — production'da PostgreSQL'e geçilebilir
-- **APScheduler**: Hafif, Docker gerektirmez — basit cron alternatifi
+- **GraphQL**: Fetches issues and repository quality data in a single query, while REST would need 3-4 requests
+- **Gemini**: Fast and cost-effective analysis model for a daily workflow
+- **Go backend**: Keeps scheduling, notifications, and data flow in one service
+- **Python analyzer**: Isolates the LLM call and keeps the JSON output simple
+- **PostgreSQL**: Central database for persistent cache and user data
 
 ---
 
-## Kurulum
+## Setup
 
-### 1. Repoyu klonla
+### 1. Clone the repository
 
 ```bash
 git clone https://github.com/kullaniciadi/openscout.git
 cd openscout
 ```
 
-### 2. Sanal ortam oluştur
+### 2. Create a virtual environment
 
 ```bash
 python -m venv venv
@@ -63,69 +64,83 @@ source venv/bin/activate      # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 3. API anahtarlarını ayarla
+### 3. Configure API keys
 
 ```bash
 cp .env.example .env
 ```
 
-`.env` dosyasını doldur:
+Fill in the `.env` file:
 
 ```env
 GITHUB_TOKEN=ghp_xxx          # github.com → Settings → Developer Settings → Tokens
 GEMINI_API_KEY=xxx            # Google AI Studio / Gemini API
 TELEGRAM_BOT_TOKEN=xxx        # @BotFather → /newbot
-TELEGRAM_CHAT_ID=xxx          # Adım 4'e bak
+TELEGRAM_CHAT_ID=xxx          # See step 4
+POSTGRES_USER=openscout
+POSTGRES_PASSWORD=openscoutpass
+POSTGRES_DB=openscout
 ```
 
-### 4. Telegram bot kurulumu
+### 4. Set up the Telegram bot
 
-1. Telegram'da **@BotFather**'ı bul
-2. `/newbot` yaz, isim ver (örn: `OpenScout`)
-3. Token'ı kopyala → `.env`'e yaz
-4. Bota bir mesaj at (herhangi bir şey)
-5. Chat ID'yi bul:
+1. Find **@BotFather** on Telegram
+2. Send `/newbot` and give it a name (for example, `OpenScout`)
+3. Copy the token and add it to `.env`
+4. Send any message to the bot
+5. Find the chat ID:
    ```bash
    curl "https://api.telegram.org/bot<TOKEN>/getUpdates"
-   # "chat":{"id": BU_SAYIYI_KOPYAlA
+        # "chat":{"id": COPY_THIS_NUMBER
    ```
-6. Chat ID'yi `.env`'e yaz
+6. Add the chat ID to `.env`
 
-### 5. Test et
+### 5. Start the services
 
 ```bash
-cd python-brain
+docker compose up --build
+```
 
-# Bot bağlantısını test et
-python main.py --test-bot
+This command starts three services:
 
-# GitHub'dan issue çek (analiz yapmadan)
-python main.py --fetch-only
+- `openscout` - Go backend and HTTP API
+- `analyzer` - Python Gemini analyzer service
+- `db` - PostgreSQL
 
-# Issue'ları analiz etmeden Telegram'a gönder
-python main.py --send-raw-issues
+### 6. Test it
 
-# Tam pipeline'ı hemen çalıştır
-python main.py --now
+```bash
+# Backend health check
+curl http://localhost:8080/health
 
-# Scheduler'ı başlat (her sabah 08:00)
-python main.py
+# Analyzer health check
+curl http://localhost:8000/health
+```
+
+If you want, you can also run the services locally one by one:
+
+```bash
+# Start the backend in its own terminal
+cd backend && go run ./cmd/openscout
+
+# Start the analyzer in a separate terminal
+cd ai && uvicorn service:app --host 0.0.0.0 --port 8000
 ```
 
 ---
 
-## Örnek Telegram Mesajı
+## Example Telegram Message
 
 ```
-🔭 OpenScout — 15 Ocak 2025
-Bugün için 5 katkı fırsatı:
+🔭 OpenScout — 15 January 2025
+Today's 5 contribution opportunities:
 
 1. Fix nil pointer in HTTP middleware
    📦 gin-gonic/gin  ⭐ 77,000
-   🟢 Zorluk: 2/5  ⚡ ~2h
+   🟢 Complexity: 2/5  ⚡ ~2h
    🔧 Go · HTTP
-   💡 Hata mesajı tam olarak belirtilmiş, tek dosya değişikliği yeterli.
-   🔗 Issue'yu gör
+   💡 The error message is specific, and a single-file change is enough.
+   🔗 View issue
 
 ────────────────────────────────
 2. Add TypeScript types for config
@@ -135,22 +150,21 @@ Bugün için 5 katkı fırsatı:
 
 ---
 
-## Geliştirme Planı
+## Roadmap
 
-- [x] Python pipeline (GitHub → LLM → Telegram)
-- [x] SQLite cache
-- [x] APScheduler
-- [ ] Go veri toplayıcı (paralel GraphQL sorguları)
-- [ ] Web arayüzü (dil seçimi + mail abonelik)
-- [ ] Supabase entegrasyonu
-- [ ] Mail bildirimi (Resend)
+- [x] Go backend + Python analyzer split
+- [x] PostgreSQL cache and user data
+- [x] Cron-based daily collection and notification flow
+- [ ] Web interface (language selection + email subscription)
+- [ ] Supabase integration
+- [ ] Email notifications (Resend)
 
 ---
 
-## Katkı
+## Contributing
 
-Issue açmak veya PR göndermek için CONTRIBUTING.md'ye bak.
+See CONTRIBUTING.md if you want to open an issue or send a PR.
 
-## Lisans
+## License
 
 MIT

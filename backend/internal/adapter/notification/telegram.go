@@ -35,9 +35,15 @@ func (t *TelegramSender) Send(ctx context.Context, user *domain.User, issues []d
         "parse_mode": "HTML",
         "disable_web_page_preview": true,
     }
-    body, _ := json.Marshal(payload)
+    body, err := json.Marshal(payload)
+    if err != nil {
+        return fmt.Errorf("marshal telegram payload: %w", err)
+    }
     url := fmt.Sprintf("https://api.telegram.org/bot%s/sendMessage", t.botToken)
-    req, _ := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
+    req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
+    if err != nil {
+        return fmt.Errorf("create telegram request: %w", err)
+    }
     req.Header.Set("Content-Type", "application/json")
     res, err := t.client.Do(req)
     if err != nil {

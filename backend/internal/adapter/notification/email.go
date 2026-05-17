@@ -50,16 +50,40 @@ func (s *EmailSender) Send(ctx context.Context, user *domain.User, issues []doma
     msg.WriteString("\r\n")
     msg.WriteString(body)
 
-    // Use TLS connection to SMTP server
-    conn, err := tls.DialWithDialer(&net.Dialer{Timeout: 10 * time.Second}, "tcp", s.addr, &tls.Config{
-        InsecureSkipVerify: false,
-        ServerName:         s.cfg.Host,
-    })
+    dialer := &net.Dialer{Timeout: 10 * time.Second}
+    conn, err := dialer.DialContext(ctx, "tcp", s.addr)
     if err != nil {
         return err
     }
-    c, err := smtp.NewClient(conn, s.cfg.Host)
+
+    tlsConfig := &tls.Config{
+        InsecureSkipVerify: false,
+        ServerName:         s.cfg.Host,
+    }
+
+    var c *smtp.Client
+    if s.cfg.Port == 465 {
+        tlsConn := tls.Client(conn, tlsConfig)
+        if err := tlsConn.HandshakeContext(ctx); err != nil {
+            _ = conn.Close()
+            return err
+        }
+        c, err = smtp.NewClient(tlsConn, s.cfg.Host)
+    } else {
+        c, err = smtp.NewClient(conn, s.cfg.Host)
+        if err == nil {
+            if ok, _ := c.Extension("STARTTLS"); !ok {
+                _ = c.Close()
+                return fmt.Errorf("smtp server does not support STARTTLS on %s", s.addr)
+            }
+            if err = c.StartTLS(tlsConfig); err != nil {
+                _ = c.Close()
+                return err
+            }
+        }
+    }
     if err != nil {
+        _ = conn.Close()
         return err
     }
     defer c.Close()

@@ -45,13 +45,20 @@ func (uc *SendNotificationsUseCase) Execute(ctx context.Context, issues []domain
     }
 
     for _, user := range users {
+        // Only fall back to default preferences when the preference is not found.
+        // Returning other repository errors surfaces real failures (DB/connection
+        // issues) instead of silently using defaults which can mask problems.
         pref, err := uc.PrefRepo.GetPreferenceByUserID(ctx, user.ID)
         if err != nil {
-            pref = &domain.UserPreference{
-                UserID:        user.ID,
-                Languages:     `["Go","Python","TypeScript"]`,
-                Labels:        `["good first issue","help wanted"]`,
-                MaxComplexity: 5,
+            if errors.Is(err, domain.ErrUserPreferenceNotFound) {
+                pref = &domain.UserPreference{
+                    UserID:        user.ID,
+                    Languages:     `["Go","Python","TypeScript"]`,
+                    Labels:        `["good first issue","help wanted"]`,
+                    MaxComplexity: 5,
+                }
+            } else {
+                return err
             }
         }
 

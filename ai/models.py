@@ -6,7 +6,7 @@ Dict yerine typed dataclass kullanmak: IDE desteği, hata yakalamayı
 ve okunabilirliği artırır.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 

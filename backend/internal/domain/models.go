@@ -46,6 +46,7 @@ type Repository struct {
     LicenseName      string     `json:"license_name"`
     ContributorCount int        `json:"contributor_count"`
     HasReadme        bool       `json:"has_readme"`
+    HasContributing  bool       `json:"has_contributing"`
     LastCommitAt     *time.Time `json:"last_commit_at,omitempty"`
 }
 

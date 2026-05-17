@@ -1,9 +1,7 @@
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
 from dotenv import load_dotenv
-import os
-import time
 from datetime import datetime
 
 load_dotenv()
@@ -25,6 +23,7 @@ class RepoPayload(BaseModel):
     license_name: Optional[str] = ""
     contributor_count: Optional[int] = 0
     has_readme: Optional[bool] = False
+    has_contributing: Optional[bool] = False
     last_commit_at: Optional[str] = None
 
 class IssuePayload(BaseModel):
@@ -69,7 +68,7 @@ async def analyze(req: AnalyzeRequest):
     for p in req.issues:
         try:
             created_at = datetime.fromisoformat(p.created_at.replace("Z", "+00:00"))
-        except Exception:
+        except (TypeError, ValueError):
             created_at = datetime.utcnow()
         repo = Repository(
             name=p.repository.name,
@@ -78,6 +77,7 @@ async def analyze(req: AnalyzeRequest):
             license_name=p.repository.license_name or "",
             contributor_count=p.repository.contributor_count or 0,
             has_readme=bool(p.repository.has_readme),
+            has_contributing=bool(p.repository.has_contributing),
             last_commit_at=(datetime.fromisoformat(p.repository.last_commit_at.replace("Z", "+00:00"))
                             if p.repository.last_commit_at else None),
         )
@@ -95,9 +95,9 @@ async def analyze(req: AnalyzeRequest):
     try:
         scored = _analyzer.analyze(issues)
     except APIError as e:
-        raise HTTPException(status_code=502, detail=str(e))
+        raise HTTPException(status_code=502, detail=str(e)) from e
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
     out = []
     for s in scored:

@@ -18,6 +18,12 @@ type Client struct {
 	log           *slog.Logger
 }
 
+const (
+	minContributors  = 10
+	maxLastCommitAge = 90 * 24 * time.Hour // 90 days
+	maxComments      = 50
+)
+
 type authTransport struct {
 	token string
 	rt    http.RoundTripper
@@ -55,7 +61,10 @@ func (c *Client) FetchIssues(ctx context.Context, languages, labels []string) ([
 
 	for _, lang := range languages {
 		for _, label := range labels {
-			queryStr := fmt.Sprintf(`label:"%s" language:%s state:open sort:created-desc`, label, lang)
+			// Push recency and comment-count caps into the search query to
+			// reduce the result set returned by GitHub.
+			createdCutoff := time.Now().Add(-maxLastCommitAge).Format("2006-01-02")
+			queryStr := fmt.Sprintf(`label:"%s" language:%s state:open sort:created-desc created:>=%s comments:<=%d`, label, lang, createdCutoff, maxComments)
 
 			var q struct {
 				Search struct {
@@ -156,6 +165,7 @@ func (c *Client) FetchIssues(ctx context.Context, languages, labels []string) ([
 					LicenseName:      licenseName(node.Repository.LicenseInfo),
 					ContributorCount: contributorCount,
 					HasReadme:        node.Repository.Readme != nil || node.Repository.Contributing != nil,
+					HasContributing:  node.Repository.Contributing != nil,
 					LastCommitAt:     lastCommit,
 				}
 
@@ -174,6 +184,22 @@ func (c *Client) FetchIssues(ctx context.Context, languages, labels []string) ([
 					Labels:       string(labelsJSON),
 					Repository:   repo,
 				}
+
+				// Apply repo quality filters per README: require README, license,
+				// minimum contributors and recent activity (last commit within 90 days).
+				if repo.LicenseName == "" {
+					continue
+				}
+				if !repo.HasReadme {
+					continue
+				}
+				if repo.ContributorCount < minContributors {
+					continue
+				}
+				if repo.LastCommitAt == nil || time.Since(*repo.LastCommitAt) > maxLastCommitAge {
+					continue
+				}
+
 				result = append(result, issue)
 			}
 		}

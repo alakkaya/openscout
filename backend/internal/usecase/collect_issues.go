@@ -20,7 +20,11 @@ func NewCollectIssuesUseCase(g port.GitHubClient) *CollectIssuesUseCase {
 }
 
 // Execute fetches issues for the configured languages/labels via the GitHub client.
-// It applies repo/issue quality filters inside the GitHub client or here if needed.
+// NOTE: repo/issue quality filters (license/README presence, contributor count,
+// recency, max comments, etc.) are NOT enforced by this use case or the
+// current GitHub adapter implementation. Implement such filters inside the
+// GitHub client or add them here before returning results if you need those
+// guarantees.
 // Returns deduped issues ready for analysis.
 func (uc *CollectIssuesUseCase) Execute(ctx context.Context, languages, labels []string) ([]domain.Issue, error) {
     if uc.Github == nil {

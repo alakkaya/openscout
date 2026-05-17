@@ -55,6 +55,7 @@ type repoPayload struct {
     LicenseName      string `json:"license_name"`
     ContributorCount int    `json:"contributor_count"`
     HasReadme        bool   `json:"has_readme"`
+    HasContributing  bool   `json:"has_contributing"`
     LastCommitAt     *string `json:"last_commit_at,omitempty"` // ISO 8601 string
 }
 
@@ -105,6 +106,7 @@ func (c *AnalyzerHTTPClient) Analyze(ctx context.Context, issues []domain.Issue)
                 LicenseName:      issue.Repository.LicenseName,
                 ContributorCount: issue.Repository.ContributorCount,
                 HasReadme:        issue.Repository.HasReadme,
+                HasContributing:  issue.Repository.HasContributing,
                 LastCommitAt:     &lastCommitStr,
             },
         }

@@ -6,10 +6,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/google/uuid"
-
 	"github.com/alakkaya/openscout/internal/domain"
 	"github.com/alakkaya/openscout/internal/repository"
+	"github.com/google/uuid"
 )
 
 type Handler struct {
@@ -89,8 +88,18 @@ func (h *Handler) Subscribe(w http.ResponseWriter, r *http.Request) {
     }
 
     // Create default preferences
-    langs, _ := json.Marshal([]string{"Go", "Python", "TypeScript"})
-    lbls, _ := json.Marshal([]string{"good first issue"})
+    langs, err := json.Marshal([]string{"Go", "Python", "TypeScript"})
+    if err != nil {
+        h.log.Error("marshal default languages failed", "error", err)
+        writeError(w, http.StatusInternalServerError, "failed to create default preferences")
+        return
+    }
+    lbls, err := json.Marshal([]string{"good first issue"})
+    if err != nil {
+        h.log.Error("marshal default labels failed", "error", err)
+        writeError(w, http.StatusInternalServerError, "failed to create default preferences")
+        return
+    }
     pref := &domain.UserPreference{
         UserID:        user.ID,
         Languages:     string(langs),
@@ -99,7 +108,11 @@ func (h *Handler) Subscribe(w http.ResponseWriter, r *http.Request) {
         CreatedAt:     time.Now().UTC(),
         UpdatedAt:     time.Now().UTC(),
     }
-    _ = h.prefRepo.CreateOrUpdatePreference(r.Context(), pref)
+    if err := h.prefRepo.CreateOrUpdatePreference(r.Context(), pref); err != nil {
+        h.log.Error("create default preferences failed", "error", err)
+        writeError(w, http.StatusInternalServerError, "failed to create default preferences")
+        return
+    }
 
     w.Header().Set("Content-Type", "application/json")
     w.WriteHeader(http.StatusCreated)

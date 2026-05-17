@@ -22,10 +22,8 @@ services:
       - db
     env_file:
       - .env
-    environment:
-      - DATABASE_URL=${DATABASE_URL:-postgres://openscout:openscoutpass@db:5432/openscout?sslmode=disable}
     ports:
-      - "${HOST_HTTP_PORT:-8080}:8080"
+      - "${HOST_HTTP_PORT:-8080}:${APP_PORT}"
     restart: unless-stopped
 
   analyzer:

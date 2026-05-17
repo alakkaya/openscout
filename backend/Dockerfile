@@ -12,6 +12,5 @@ FROM alpine:3.23
 RUN apk add --no-cache ca-certificates
 COPY --from=builder /bin/openscout /bin/openscout
 WORKDIR /app
-ENV DATABASE_URL=postgres://openscout:openscoutpass@db:5432/openscout?sslmode=disable
 EXPOSE 8080
 ENTRYPOINT ["/bin/openscout"]

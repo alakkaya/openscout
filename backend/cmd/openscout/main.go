@@ -111,9 +111,10 @@ func main() {
 	mux.HandleFunc("POST /preferences", handler.Preferences)
 	mux.HandleFunc("POST /feedback", handler.Feedback)
 
-	port := os.Getenv("HOST_HTTP_PORT")
+	port := os.Getenv("APP_PORT")
 	if port == "" {
-		port = "8080"
+		log.Error("missing required env", "key", "APP_PORT")
+		os.Exit(1)
 	}
 	addr := fmt.Sprintf(":%s", port)
 	server := &http.Server{Addr: addr, Handler: mux}

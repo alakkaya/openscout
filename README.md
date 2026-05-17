@@ -12,7 +12,7 @@ Her sabah saat 08:00'de otomatik olarak çalışır:
 2. Repo kalite filtresi uygular (README, lisans, 10+ katkıcı, son 90 gün aktif)
 3. **LLM (Gemini)** ile her issue'yu analiz eder: "Bu gerçekten yeni biri için çözülebilir mi?"
 4. En uygun 5 issue'yu seçer, karmaşıklık skoruyla birlikte **Telegram'a** gönderir
-5. Gönderilen issue'ları SQLite cache'e kaydeder — ertesi gün tekrar göndermez
+5. Gönderilen issue'ları PostgreSQL cache'e kaydeder — ertesi gün tekrar göndermez
 
 ---
 
@@ -28,7 +28,7 @@ github_client.py   ← repo kalite filtresi (README, lisans, katkıcı, aktiflik
 analyzer.py        ← Gemini ile karmaşıklık analizi (JSON çıktı)
         │
         ▼
-cache.py           ← SQLite — daha önce görülen issue'ları atla
+cache.py           ← PostgreSQL — daha önce görülen issue'ları atla
         │
         ▼
 notifier.py        ← Telegram bot bildirimi
@@ -41,7 +41,7 @@ scheduler.py       ← APScheduler cron (her gün 08:00 İstanbul saati)
 
 - **GraphQL**: Tek sorguda issue + repo kalite kriterleri — REST'te 3-4 istek gerekirdi
 - **Gemini**: Hızlı ve ucuz analiz modeli — günlük çalışma için ideal
-- **SQLite**: Sıfır konfigürasyon, dosya tabanlı cache — production'da PostgreSQL'e geçilebilir
+- **PostgreSQL**: Kalıcı cache ve kullanıcı verileri için merkezi veritabanı
 - **APScheduler**: Hafif, Docker gerektirmez — basit cron alternatifi
 
 ---
@@ -138,7 +138,7 @@ Bugün için 5 katkı fırsatı:
 ## Geliştirme Planı
 
 - [x] Python pipeline (GitHub → LLM → Telegram)
-- [x] SQLite cache
+- [x] PostgreSQL cache
 - [x] APScheduler
 - [ ] Go veri toplayıcı (paralel GraphQL sorguları)
 - [ ] Web arayüzü (dil seçimi + mail abonelik)

@@ -6,7 +6,6 @@ __pycache__/
 *.pyd
 .Python
 *.db
-*.sqlite3
 .DS_Store
 *.egg-info/
 dist/

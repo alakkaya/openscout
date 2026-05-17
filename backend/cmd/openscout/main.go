@@ -12,7 +12,7 @@ import (
 	"github.com/alakkaya/openscout/internal/adapter/github"
 	analyzerhttp "github.com/alakkaya/openscout/internal/adapter/http"
 	"github.com/alakkaya/openscout/internal/adapter/notification"
-	sqliteadapter "github.com/alakkaya/openscout/internal/adapter/sqlite"
+	postgresadapter "github.com/alakkaya/openscout/internal/adapter/postgres"
 	"github.com/alakkaya/openscout/internal/infrastructure"
 	"github.com/alakkaya/openscout/internal/usecase"
 	"github.com/alakkaya/openscout/internal/web"
@@ -26,7 +26,7 @@ func main() {
 	}
 
 	log := infrastructure.NewLogger(cfg.Logger.Level)
-	log.Info("config loaded", "db", cfg.Database.Path)
+	log.Info("config loaded", "db", "postgres")
 
 	db, err := infrastructure.NewDatabase(cfg.Database)
 	if err != nil {
@@ -61,10 +61,10 @@ func main() {
 	}
 	notifier := notification.NewCompositeNotifier(emailSender, telegramSender)
 
-	userRepo := sqliteadapter.NewUserRepository(db)
-	prefRepo := sqliteadapter.NewUserPreferenceRepository(db)
-	feedbackRepo := sqliteadapter.NewFeedbackRepository(db)
-	notificationRepo := sqliteadapter.NewNotificationRepository(db)
+	userRepo := postgresadapter.NewUserRepository(db)
+	prefRepo := postgresadapter.NewUserPreferenceRepository(db)
+	feedbackRepo := postgresadapter.NewFeedbackRepository(db)
+	notificationRepo := postgresadapter.NewNotificationRepository(db)
 
 	collectUC := usecase.NewCollectIssuesUseCase(githubClient)
 	analyzeUC := usecase.NewAnalyzeIssuesUseCase(analyzerClient)

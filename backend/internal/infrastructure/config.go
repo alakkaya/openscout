@@ -16,8 +16,7 @@ type Config struct {
 }
 
 type DatabaseConfig struct {
-	DSN  string
-    Path string
+    DSN string
 }
 
 type GitHubConfig struct {
@@ -47,8 +46,7 @@ type LoggerConfig struct {
 func LoadConfig() (*Config, error) {
     cfg := &Config{
         Database: DatabaseConfig{
-			DSN:  getEnv("DATABASE_URL", ""), 
-            Path: getEnv("OPENSCOUT_DB", "openscout.db"),
+            DSN: getEnvRequired("DATABASE_URL"),
         },
         GitHub: GitHubConfig{
             Token: getEnvRequired("GITHUB_TOKEN"),

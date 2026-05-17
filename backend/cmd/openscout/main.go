@@ -35,7 +35,7 @@ func main() {
 	}
 	log.Info("database ready")
 
-	githubClient := github.NewClient(cfg.GitHub.Token, 20)
+	githubClient := github.NewClient(cfg.GitHub.Token, 20, log)
 	analyzerClient := analyzerhttp.NewAnalyzerHTTPClient(cfg.Analyzer.URL, 30*time.Second)
 
 	var emailSender *notification.EmailSender
